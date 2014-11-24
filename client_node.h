@@ -2,9 +2,8 @@
 #define __CLIENT_NODE_H__
 #include "cmd_node.h"
 #include "pipe_node.h"
-#include <semaphore.h>
 
-#define CLI_SHM_KEY 6000
+#define CLI_SHM_KEY 8888
 
 struct client_node {
     int id;
@@ -30,7 +29,6 @@ struct client_node {
 typedef struct client_node client_node_t;
 
 int client_semid;
-sem_t* client_mutex;
 client_node_t* client_list;
 
 client_node_t* create_client_node(int client_socket_fd, char ip[16], int port);
@@ -48,4 +46,9 @@ void get_client_name(int client_id, char* name);
 void get_mbox_info(int client_id, int* head, int* tail);
 void set_mbox_info(int client_id, int head, int tail);
 void set_client_name(int client_id, char* name);
+
+void client_wait();
+void client_signal();
 #endif
+
+

@@ -72,6 +72,7 @@ int main(int argc, const char * argv[])
 }
 void init_client_list() {
     client_id = -1;
+    client_semid = -1;
     int shmid = shmget((key_t)CLI_SHM_KEY, sizeof(client_node_t) * 32, IPC_CREAT | 0600);
     if(shmid < 0) {
         perror("init shm for client list error!");
@@ -115,6 +116,25 @@ void init_message_boxes() {
             message_box[cc].type = -1;
         }
     }
+
+    for(c=1; c<=30; c++) {
+        key_t msg_key = 3000 + c;
+        int shmid = shmget(msg_key, sizeof(ras_msg_t) * 10, IPC_CREAT | 0666);
+        if(shmid == -1) {
+            perror("shmget error");
+            return;
+        }
+        ras_msg_t* message_box = shmat(shmid, NULL, 0);
+        if(message_box == NULL) {
+            return;
+        }
+        int cc;
+        for(cc=0; cc<10; cc++) {
+            message_box[cc].type = -1;
+        }
+    }
+
+
 
 
 }

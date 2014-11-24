@@ -42,6 +42,7 @@ void signal_handle() {
     if(data.type != -1) {
         printf("%s", data.msg);
         fflush(stdout);
+        client_signal();
     }
 }
 
@@ -64,6 +65,7 @@ int serve(client_node_t* client) {
     printf("%s\n", welcome_message);
     fflush(stdout);
     char broad_msg[1024];
+    bzero(broad_msg, 1024);
     sprintf(broad_msg, "*** User '(no name)' entered from %s/%d. ***\n", client->ip, client->port);
     broad_cast(client, broad_msg);
     printf("%% ");
@@ -92,12 +94,12 @@ int serve(client_node_t* client) {
                     free_cmd_list(&cmd_node_list);
                 } else if(errnum == -2) {
                     // pipe to me not exist
-                    printf("*** Error: the pipe #%d->#%d does not exist yet. ***\n", node_to_exec->user_id, client->id);
+                    printf("*** Error: the pipe #%d->#%d does not exist yet. ***\n", node_to_exec->from_user_id, client->id);
                     fflush(stdout);
                     free_cmd_list(&cmd_node_list);
                 } else if(errnum == -3) {
                     // pipe to other exist
-                    printf("*** Error: the pipe #%d->#%d already exists. ***\n", client->id, node_to_exec->user_id);
+                    printf("*** Error: the pipe #%d->#%d already exists. ***\n", client->id, node_to_exec->to_user_id);
                     fflush(stdout);
                 } else if(errnum == -4) {
                     // logout
@@ -137,6 +139,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         return 0;
     } else if(strcmp(cmd_node->cmd, "exit") == 0) {
         char exit_msg[64];
+        bzero(exit_msg, 64);
         sprintf(exit_msg, "*** User '%s' left. ***\n", client->name);
         broad_cast(client, exit_msg);
         // clean message queues
@@ -163,6 +166,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
     } else if(strcmp(cmd_node->cmd, "yell") == 0) {
         char message[11000];
         sprintf(message, "*** %s yelled ***: %s\n", client->name, cmd_node->args[1]);
+        bzero(message, 11000);
         broad_cast(client, message);
         decrease_all_pipe_node(client->pipe_list);
         return 0;
@@ -175,6 +179,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
             set_client_name(client->id, name);
             strcpy(client->name, name);
             char msg[40];
+            bzero(msg, 40);
             sprintf(msg, "*** User from %s/%d is named '%s'. ***\n", client->ip, client->port, client->name);
             broad_cast(client, msg);
             fflush(stdout);
@@ -195,17 +200,18 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         in_pipe_node->count--;
     }
     if(cmd_node->pipe_from_user == 1) {
-        ras_msg_t r = mq_recv_msg(PIPE_TO_MSG, cmd_node->user_id, client->id);
-        if(r.type == -1) {
+        char data[2048];
+        bzero(data, 2048);
+        int r = pull_global_pipe_data(cmd_node->from_user_id, client->id, data);
+        if(r == -1) {
             inscrease_all_pipe_node(client->pipe_list);
             return -2;
         }
         int g_pipe[2];
         pipe(g_pipe);
-        write(g_pipe[1], r.msg, strlen(r.msg) + 1);
+        write(g_pipe[1], data, strlen(data) + 1);
         close(g_pipe[1]);
         input_pipe_fd = g_pipe[0];
-        remove_global_pipe(cmd_node->user_id, client->id, 1);
     }
     int tmp_global_pipe[2];
 
@@ -216,12 +222,12 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
     } else if(cmd_node->pipe_to_file == 1){
         output_pipe_fd = get_file_fd(cmd_node->filename);
     } else if(cmd_node->pipe_to_user == 1) {
-        if(is_client_available(cmd_node->user_id) != 1) {
-            printf("*** Error: user #%d does not exist yet. ***\n", cmd_node->user_id);
+        if(is_client_available(cmd_node->to_user_id) != 1) {
+            printf("*** Error: user #%d does not exist yet. ***\n", cmd_node->to_user_id);
             fflush(stdout);
             close_unused_fd(client);
             return 0;
-        } else if(is_global_pipe_exist(client->id, cmd_node->user_id) == 1) {
+        } else if(is_global_pipe_exist(client->id, cmd_node->to_user_id) == 1) {
             close_unused_fd(client);
             return -3;
         }
@@ -234,9 +240,10 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         // *** (name) (#<client id>) just piped '(command line)' to (receiver's name) (#<receiver's client_id>) ***
         char* msg_temp = "*** %s (#%d) just piped '%s' to %s (#%d) ***\n";
         char msg[128];
+        bzero(msg, 128);
         char to_client_name[30];
-        get_client_name(cmd_node->user_id, to_client_name);
-        sprintf(msg, msg_temp, client->name, client->id, last_line, to_client_name, cmd_node->user_id);
+        get_client_name(cmd_node->to_user_id, to_client_name);
+        sprintf(msg, msg_temp, client->name, client->id, last_line, to_client_name, cmd_node->to_user_id);
         broad_cast(client, msg);
         fflush(stdout);
     } else if(cmd_node->pipe_count != 0) {
@@ -312,10 +319,12 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
                     close(output_pipe_fd);
                 }
                 char buffer[2048];
+                bzero(buffer, 2048);
                 read(tmp_global_pipe[0], buffer, 2048);
-
-                mq_send_msg(PIPE_TO_MSG, client->id, cmd_node->user_id, buffer);
-                add_global_pipe(client->id, cmd_node->user_id);
+                //printf("[DBG] Buffer:\n");
+                //printf("%s\n", buffer);
+                add_global_pipe(client->id, cmd_node->to_user_id, buffer);
+                close(tmp_global_pipe[0]);
             }
             close_unused_fd(client);
         }
@@ -323,10 +332,12 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
     if(cmd_node->pipe_from_user == 1) {
         char* msg_tmp = "*** %s (#%d) just received from %s (#%d) by '%s' ***\n";
         char msg[100];
+        bzero(msg, 100);
         char from_client_name[30];
-        get_client_name(cmd_node->user_id, from_client_name);
-        sprintf(msg, msg_tmp, client->name, client->id, from_client_name, cmd_node->user_id, last_line);
+        get_client_name(cmd_node->from_user_id, from_client_name);
+        sprintf(msg, msg_tmp, client->name, client->id, from_client_name, cmd_node->from_user_id, last_line);
         broad_cast(client, msg);
+        remove_global_pipe(cmd_node->from_user_id, client->id, 1);
     }
     return 0;
 }

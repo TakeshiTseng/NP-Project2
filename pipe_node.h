@@ -9,6 +9,7 @@ struct pipe_node {
     // for global use
     int from_user_id;
     int to_user_id;
+    char data[2048];
 };
 
 typedef struct pipe_node pipe_node_t;

@@ -9,6 +9,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <signal.h>
+#include "ras_sem.h"
 
 client_node_t* get_client_list() {
     if(client_list == NULL) {
@@ -64,6 +65,7 @@ void broad_cast(client_node_t* current_client, char* message) {
         if(client_list[c].id != -1) {
             mq_send_msg(TELL_MSG, current_client->id, c, message);
             kill(client_list[c].pid, SIGUSR1);
+            client_wait();
         }
     }
 }
@@ -98,6 +100,7 @@ int tell(client_node_t* current_client, char* client_id_str, char* message) {
         sprintf(msg_to_send, "*** %s told you ***: %s\n", current_client->name, message);
         mq_send_msg(TELL_MSG, current_client->id, client_id, msg_to_send);
         kill(client_list[client_id].pid, SIGUSR1);
+        client_wait();
     }
     return 0;
 }
@@ -169,4 +172,26 @@ void set_mbox_info(int client_id, int head, int tail) {
 void set_client_name(int client_id, char* name) {
     client_node_t* client_list = get_client_list();
     strcpy(client_list[client_id].name, name);
+}
+
+void client_wait() {
+    if(client_semid == -1) {
+        client_semid = sem_create(CLI_SHM_KEY, 0);
+        if(client_semid == -1) {
+            perror("create sem error");
+            return;
+        }
+    }
+    sem_wait(client_semid);
+}
+
+void client_signal() {
+    if(client_semid == -1) {
+        client_semid = sem_create(CLI_SHM_KEY, 0);
+        if(client_semid == -1) {
+            perror("create sem error");
+            return;
+        }
+    }
+    sem_signal(client_semid);
 }
