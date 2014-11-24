@@ -13,6 +13,5 @@ void remove_from_chain(node_t* node_to_remove);
 int get_file_fd(char* filename);
 void remove_unused_nodes();
 void close_unused_fd();
-int is_this_pipe_needed_by_someone(int fd);
 void handle_from_user_node(cmd_node_t** cmd_list);
 #endif

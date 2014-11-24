@@ -2,6 +2,9 @@
 #define __CLIENT_NODE_H__
 #include "cmd_node.h"
 #include "pipe_node.h"
+#include <semaphore.h>
+
+#define CLI_SHM_KEY 6000
 
 struct client_node {
     int id;
@@ -16,9 +19,19 @@ struct client_node {
     char env[256][1024];
     char env_val[256][1024];
     char num_env;
+    int pid;
+
+
+    // message box
+    int mbox_head;
+    int mbox_tail;
 };
 
 typedef struct client_node client_node_t;
+
+int client_semid;
+sem_t* client_mutex;
+client_node_t* client_list;
 
 client_node_t* create_client_node(int client_socket_fd, char ip[16], int port);
 int insert_to_client_list(client_node_t* new_client_node);
@@ -29,8 +42,10 @@ void set_env_to_client_node(client_node_t* client, char* name, char* val);
 void remove_client_node(client_node_t* client);
 int who(client_node_t* current_client);
 int check_name_exist(char* name);
-
-// global variable
-client_node_t* client_list[32];
-
+int is_client_available(int client_id);
+void change_client_name(int client_id, char* name);
+void get_client_name(int client_id, char* name);
+void get_mbox_info(int client_id, int* head, int* tail);
+void set_mbox_info(int client_id, int head, int tail);
+void set_client_name(int client_id, char* name);
 #endif

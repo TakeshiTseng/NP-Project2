@@ -2,7 +2,6 @@
 #define __SEM_H__
 #include <sys/sem.h>
 #define SEMKEY 0x7777L
-int semid;
 
 int sem_create(key_t key, int initval);
 int sem_open(key_t key);

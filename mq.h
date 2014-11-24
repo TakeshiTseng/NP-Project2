@@ -24,7 +24,7 @@ struct mq_msg {
 typedef struct mq_msg mq_msg_t;
 
 int mq_send_msg(int type, int from, int to, char* message);
-int mq_recv_msg(int type, int from, int to, char* message);
+ras_msg_t mq_recv_msg(int type, int from, int to);
 void mq_clean(int client_id);
 #endif
 
