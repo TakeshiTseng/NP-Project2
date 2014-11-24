@@ -56,7 +56,7 @@ int main(int argc, const char * argv[])
 
         if(pid == 0) {
             // child
-            client_node_t* client = create_client_node(new_client_sock, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            client_node_t* client = create_client_node(new_client_sock, "CGILAB"/*inet_ntoa(client_addr.sin_addr)*/, 511/*ntohs(client_addr.sin_port)*/);
             close(sc_fd);
 
             if(insert_to_client_list(client) != -1) {

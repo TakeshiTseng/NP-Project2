@@ -109,7 +109,7 @@ int who(client_node_t* current_client) {
     for(c=1; c<=30; c++) {
         client_node_t t_client = client_list[c];
         if(t_client.id != -1) {
-            printf("%d\t%s\tCGILAB/511", c, t_client.name);
+            printf("%d\t%s\t%s/%d", c, t_client.name, t_client.ip, t_client.port);
             if(c == current_client->id) {
                 printf("\t<-me");
             }

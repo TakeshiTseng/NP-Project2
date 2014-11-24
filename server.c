@@ -141,6 +141,8 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         broad_cast(client, exit_msg);
         // clean message queues
         mq_clean(client->id);
+        // remove global pipes
+        remove_global_pipe(client->id, client->id, 0);
         // remove client from client list
         remove_client_node(client);
         // return logout status
@@ -154,8 +156,9 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         if(r == -1) {
             printf("*** Error: user #%s does not exist yet. ***\n", cmd_node->args[1]);
             fflush(stdout);
+        } else {
+            decrease_all_pipe_node(client->pipe_list);
         }
-        decrease_all_pipe_node(client->pipe_list);
         return 0;
     } else if(strcmp(cmd_node->cmd, "yell") == 0) {
         char message[11000];
@@ -176,6 +179,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
             broad_cast(client, msg);
             fflush(stdout);
         }
+        decrease_all_pipe_node(client->pipe_list);
         return 0;
     }
 
@@ -201,6 +205,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         write(g_pipe[1], r.msg, strlen(r.msg) + 1);
         close(g_pipe[1]);
         input_pipe_fd = g_pipe[0];
+        remove_global_pipe(cmd_node->user_id, client->id, 1);
     }
     int tmp_global_pipe[2];
 
@@ -280,8 +285,9 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
 
     } else if(pipe_count != 0) {
         int status;
-        waitpid(pid, &status, 0);
-        if(WIFEXITED(status) && WEXITSTATUS(status) != 0){
+        wait(&status);
+        // waitpid(pid, &status, 0);
+        if(WEXITSTATUS(status) != 0){
             inscrease_all_pipe_node(client->pipe_list);
             return -1;
         } else {
@@ -291,8 +297,9 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         }
     } else {
         int status;
-        waitpid(pid, &status, 0);
-        if(WIFEXITED(status) && WEXITSTATUS(status) != 0){
+        wait(&status);
+        // waitpid(pid, &status, 0);
+        if(WEXITSTATUS(status) != 0){
             inscrease_all_pipe_node(client->pipe_list);
             return -1;
         } else {
@@ -328,16 +335,33 @@ int get_file_fd(char* filename) {
     return open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IROTH);
 }
 
+int fd_need_by_other_pipe(client_node_t* client, int fd) {
+     pipe_node_t* tmp_list = client->pipe_list;
+     while(tmp_list != NULL) {
+        if(tmp_list->count > 0) {
+            if(tmp_list->in_fd == fd || tmp_list->out_fd == fd) {
+                return 1;
+            }
+        }
+        tmp_list = tmp_list->next_node;
+     }
+     return 0;
+}
+
 void close_unused_fd(client_node_t* client) {
     pipe_node_t* tmp_list = client->pipe_list;
     while(tmp_list != NULL) {
 
         if(tmp_list->count <= 0) {
             if(fcntl(tmp_list->out_fd, F_GETFD) != -1) {
-                close(tmp_list->out_fd);
+                if(fd_need_by_other_pipe(client, tmp_list->out_fd) != 1){
+                    close(tmp_list->out_fd);
+                }
             }
             if(fcntl(tmp_list->in_fd, F_GETFD) != -1) {
-                close(tmp_list->in_fd);
+                if(fd_need_by_other_pipe(client, tmp_list->in_fd) != 1) {
+                    close(tmp_list->in_fd);
+                }
             }
         }
         tmp_list = tmp_list->next_node;
