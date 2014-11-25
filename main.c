@@ -62,7 +62,7 @@ int main(int argc, const char * argv[])
             if(insert_to_client_list(client) != -1) {
                 serve(client);
                 close(new_client_sock);
-                break;
+                return 0;
             }
         } else {
             close(new_client_sock);

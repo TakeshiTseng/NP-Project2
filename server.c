@@ -103,7 +103,6 @@ int serve(client_node_t* client) {
                     fflush(stdout);
                 } else if(errnum == -4) {
                     // logout
-                    remove_client_node(client);
                     return -1;
                 }
             }
@@ -209,7 +208,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         }
         int g_pipe[2];
         pipe(g_pipe);
-        write(g_pipe[1], data, strlen(data) + 1);
+        write(g_pipe[1], data, strlen(data));
         close(g_pipe[1]);
         input_pipe_fd = g_pipe[0];
     }
