@@ -1,9 +1,8 @@
 #include "global_pipe.h"
 #include "pipe_node.h"
-#include "sem.h"
 #include <sys/shm.h>
 #include <stdio.h>
-
+#include <string.h>
 
 pipe_node_t* get_global_pipe_list() {
     int shmid = shmget((key_t)GPIPE_SHM_KEY, sizeof(pipe_node_t) * MAX_GPIPE, 0666);
@@ -28,7 +27,7 @@ int is_global_pipe_exist(int from , int to) {
     return res;
 }
 
-void add_global_pipe(int from, int to) {
+void add_global_pipe(int from, int to, char* message) {
     pipe_node_t* pipe_list = get_global_pipe_list();
     int c;
     for(c=0; c<MAX_GPIPE; c++) {
@@ -36,6 +35,7 @@ void add_global_pipe(int from, int to) {
             pipe_list[c].count = 1;
             pipe_list[c].from_user_id = from;
             pipe_list[c].to_user_id = to;
+            strcpy(pipe_list[c].data, message);
             break;
         }
     }
@@ -66,3 +66,16 @@ void remove_global_pipe(int from, int to, int both_match) {
 
 }
 
+
+
+int pull_global_pipe_data(int from, int to, char* data) {
+    pipe_node_t* pipe_list = get_global_pipe_list();
+    int c;
+    for(c=0; c<MAX_GPIPE; c++) {
+        if(pipe_list[c].count != -1 && pipe_list[c].from_user_id == from && pipe_list[c].to_user_id == to) {
+            strcpy(data, pipe_list[c].data);
+            return 1;
+        }
+    }
+    return -1;
+}
