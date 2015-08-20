@@ -202,7 +202,7 @@ int exec_cmd_node(cmd_node_t* cmd_node, client_node_t* client) {
         }
         int g_pipe[2];
         pipe(g_pipe);
-        write(g_pipe[1], r.msg, strlen(r.msg) + 1);
+        write(g_pipe[1], r.msg, strlen(r.msg));
         close(g_pipe[1]);
         input_pipe_fd = g_pipe[0];
         remove_global_pipe(cmd_node->user_id, client->id, 1);
