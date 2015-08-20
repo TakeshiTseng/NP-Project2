@@ -23,3 +23,7 @@ test/*
 
 # ras test files
 ras/*.txt
+
+*.plist
+
+*.rar
